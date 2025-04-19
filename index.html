@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Buen Black Cyber Kiosk (Vue)</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" href="google-favicon.png">
+    <!-- Vue.js 3 CDN -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <!-- html5-qrcode CDN -->
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+</head>
+<body>
+    <div id="app" class="kiosk-container" v-cloak> <!-- v-cloak prevents uncompiled template flash -->
+        <header class="app-header">
+            <img src="google-logo-icon.png" alt="Google Logo" class="google-logo-icon">
+        </header>
+
+        <main class="app-main">
+            <!-- Loading Overlay (can be shown on top of any section) -->
+            <div v-if="isLoading" class="loading-overlay app-section active">
+                 <div class="spinner"></div>
+                 <p>{{ loadingMessage }}</p>
+            </div>
+
+            <!-- 1. Scan Section -->
+            <section v-if="currentSection === 'scan'" id="scan-section" class="app-section active">
+                <div class="event-title">
+                    <span class="buen">Buen</span>
+                    <span class="black">Black</span>
+                    <span class="cyber">Cyber</span>
+                </div>
+                <p class="scan-prompt">Escanea tu código para comenzar tu experiencia de canje</p>
+                <div id="qr-reader" style="width: 250px; height: 250px; border: 1px solid #ccc;">
+                    <!-- QR Reader will be mounted here by the library -->
+                </div>
+                 <div v-if="cameraError" class="error-message">{{ cameraError }}</div>
+                <p class="scan-instruction">Coloca tu QR frente a la cámara para identificarte</p>
+            </section>
+
+            <!-- 2. Welcome Section (Loading handled by overlay now) -->
+            <section v-if="currentSection === 'welcome'" id="welcome-section" class="app-section active">
+                <div class="points-badge">Tienes <span>{{ currentUser.points }}</span> puntos</div>
+                <p class="welcome-greeting">¡Hola,</p>
+                <h1 id="user-name">{{ currentUser.name }}!</h1>
+                <p>Bienvenido al<br><strong>Buen Black Cyber 2025</strong></p>
+                <p>Tienes disponibles <strong>{{ currentUser.points }} puntos</strong> para canjear por nuestros productos exclusivos.</p>
+                <button @click="handleStartSelection" class="btn btn-primary">EMPEZAR</button>
+                 <div class="bottom-icon-placeholder">
+                     <img src="game-controller-icon.png" alt="Icon">
+                 </div>
+            </section>
+
+            <!-- 3. Gifts Section -->
+            <section v-if="currentSection === 'gifts'" id="gifts-section" class="app-section active">
+                <div class="gifts-header">
+                     <div class="points-badge">Puntos: {{ currentUser.points }} | Usados: {{ totalSelectedPoints }} | Disp: {{ remainingPoints }}</div>
+                     <button class="cart-btn" :disabled="cartItemCount === 0">
+                         <img src="shopping-cart-icon.png" alt="Cart">
+                         <span>Carrito ({{ cartItemCount }})</span>
+                     </button>
+                </div>
+                <h2>Elige tus productos favoritos</h2>
+                <div v-if="tempGiftError" class="error-message" style="margin-bottom: 15px;">{{ tempGiftError }}</div>
+                <div id="gifts-list" class="gifts-grid">
+                    <div v-for="gift in availableGifts"
+                         :key="gift.id"
+                         class="gift-item"
+                         :class="{
+                            'selected': isGiftSelected(gift.id),
+                            'disabled': gift.stock <= 0 || remainingPoints < gift.pointsCost && !isGiftSelected(gift.id),
+                         }"
+                         :data-id="gift.id"
+                         :data-points="gift.pointsCost">
+
+                        <img :src="gift.imageUrl || 'images/placeholder.png'" :alt="gift.name">
+                        <h3>{{ gift.name }}</h3>
+                        <p>{{ gift.pointsCost }} pts</p>
+                        <span v-if="gift.stock <= 0" class="out-of-stock-label">Agotado</span>
+                        <button v-if="gift.stock > 0"
+                                class="add-gift-btn"
+                                @click="handleGiftSelection(gift)"
+                                :disabled="remainingPoints < gift.pointsCost && !isGiftSelected(gift.id)">
+                                {{ isGiftSelected(gift.id) ? '✓' : '+' }}
+                        </button>
+                    </div>
+                </div>
+                 <button @click="handleConfirmSelection" class="btn btn-primary" :disabled="!canConfirmSelection">
+                     Confirmar Selección ({{ totalSelectedPoints }} pts)
+                 </button>
+            </section>
+
+            <!-- 4. Confirmation Section -->
+            <section v-if="currentSection === 'confirmation'" id="confirmation-section" class="app-section active">
+                <h1 class="confirm-thanks">¡Gracias por participar!</h1>
+                <p>Tu pedido ha sido confirmado.</p>
+                <p>Disfruta el resto de tu experiencia en el <strong>Buen Black Cyber 2025</strong>.</p>
+                <p class="small-print">Recoge tu regalo en el mostrador.</p>
+                 <div class="bottom-icon-placeholder">
+                     <img src="shopping-bag-confirm.png" alt="Shopping Bag">
+                 </div>
+            </section>
+
+             <!-- 5. Error Section -->
+            <section v-if="currentSection === 'error'" id="error-section" class="app-section active">
+                <h2>¡Oops! Algo salió mal.</h2>
+                <p id="error-message">{{ errorMessage }}</p>
+                <button @click="resetToScan" class="btn btn-secondary">Volver a Escanear</button>
+            </section>
+        </main>
+
+        <footer class="app-footer">
+             <div class="footer-shape footer-shape-red"></div>
+             <div class="footer-shape footer-shape-blue"></div>
+             <div class="footer-shape footer-shape-yellow"></div>
+             <div class="footer-shape footer-shape-green"></div>
+        </footer>
+    </div>
+
+    <!-- Main Vue Application Logic -->
+    <script src="app.js"></script> <!-- Changed from script.js -->
+
+    <style>
+      /* Style to hide uncompiled templates */
+      [v-cloak] > * { display:none }
+      [v-cloak]::before { content: "Loading..." } /* Optional loading text */
+
+      /* Loading Overlay Style */
+      .loading-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(255, 255, 255, 0.8);
+        z-index: 100;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        flex-direction: column;
+      }
+      .loading-overlay .spinner { margin-bottom: 20px; }
+      .loading-overlay p { font-size: 1.1em; color: #5f6368; }
+
+      /* Out of stock label */
+      .gift-item.disabled .out-of-stock-label {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-15deg);
+            background-color: rgba(95, 99, 104, 0.8); /* Darker grey */
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            font-weight: bold;
+            z-index: 2; /* Above image */
+      }
+      .gift-item.disabled img,
+      .gift-item.disabled h3,
+      .gift-item.disabled p {
+          opacity: 0.6;
+      }
+      /* Ensure disabled state due to points also gets opacity */
+       .gift-item:has(button:disabled) img,
+       .gift-item:has(button:disabled) h3,
+       .gift-item:has(button:disabled) p {
+            opacity: 0.6;
+       }
+
+       .gift-item:has(button:disabled) button {
+            background-color: #ccc; /* Grey out disabled button */
+       }
+
+    </style>
+</body>
+</html>

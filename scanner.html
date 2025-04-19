@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex">
+  <title>Escaneo Inteligente QR</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#00c6ff">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <style>
+    body {
+      background: #f8f9fa;
+      font-family: 'Segoe UI', sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+    header, footer {
+      background-color: #0d6efd;
+      color: white;
+      padding: 1rem;
+      text-align: center;
+    }
+    .hero {
+      background: linear-gradient(to right, #0d6efd, #6610f2);
+      color: white;
+      text-align: center;
+      padding: 3rem 1rem;
+    }
+    .glass-section {
+      background: rgba(255, 255, 255, 0.8);
+      border-radius: 15px;
+      padding: 2rem;
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+      margin-bottom: 2rem;
+    }
+    .scan-history {
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .btn-custom {
+      background-color: #0d6efd;
+      color: #fff;
+      border: none;
+    }
+    .btn-custom:hover {
+      background-color: #0b5ed7;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Panel de Escaneo QR</h1>
+  </header>
+
+  <section class="hero">
+    <h2>Bienvenido al sistema de escaneo</h2>
+    <p>Escanea, consulta, descarga y controla la asistencia fácilmente</p>
+  </section>
+
+  <main class="container my-5">
+    <div class="row">
+      <div class="col-lg-6">
+        <div class="glass-section">
+          <h4>Escáner</h4>
+          <div id="qr-reader"></div>
+        </div>
+        <div class="glass-section">
+          <h5>Búsqueda Manual</h5>
+          <input type="text" id="manual-search" class="form-control mb-2" placeholder="Buscar texto escaneado">
+          <button class="btn btn-sm btn-custom" onclick="manualSearch()">Buscar</button>
+          <div id="manual-result" class="mt-3 small"></div>
+        </div>
+      </div>
+      <div class="col-lg-6">
+        <div class="glass-section">
+          <h5>Resumen</h5>
+          <p><strong>Escaneos totales:</strong> <span id="audience-count">0</span></p>
+          <p><strong>Último escaneo:</strong> <span id="last-scan-time">N/A</span></p>
+          <button class="btn btn-sm btn-custom mb-1" onclick="incrementAudience()">+1 Audiencia</button>
+          <button class="btn btn-sm btn-custom mb-1" onclick="decrementAudience()">-1 Audiencia</button>
+          <button class="btn btn-sm btn-warning mb-1" onclick="resetData()">Reiniciar</button>
+          <button class="btn btn-sm btn-success mb-1" onclick="downloadJSON()">Descargar JSON</button>
+        </div>
+        <div class="glass-section scan-history">
+          <h5>Historial</h5>
+          <ul id="history-list" class="list-unstyled small"></ul>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <p>&copy; 2025 Tu Evento Profesional - Todos los derechos reservados</p>
+  </footer>
+
+  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+  <script>
+    let audienceCount = 0;
+    let scanHistory = [];
+    let scanning = true;
+
+    function loadData() {
+      const stored = localStorage.getItem('scanData');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        audienceCount = parsed.count;
+        scanHistory = parsed.history;
+        updateUI();
+      }
+    }
+
+    function saveData() {
+      localStorage.setItem('scanData', JSON.stringify({ count: audienceCount, history: scanHistory }));
+    }
+
+    function updateUI() {
+      document.getElementById('audience-count').textContent = audienceCount;
+      const historyList = document.getElementById('history-list');
+      historyList.innerHTML = '';
+      scanHistory.slice().reverse().forEach(entry => {
+        const li = document.createElement('li');
+        li.textContent = `${entry.date} - ${entry.text}`;
+        historyList.appendChild(li);
+      });
+    }
+
+    function resetData() {
+      if (confirm('¿Borrar todos los datos?')) {
+        audienceCount = 0;
+        scanHistory = [];
+        saveData();
+        updateUI();
+      }
+    }
+
+    function incrementAudience() {
+      audienceCount++;
+      saveData();
+      updateUI();
+    }
+
+    function decrementAudience() {
+      if (audienceCount > 0) {
+        audienceCount--;
+        saveData();
+        updateUI();
+      }
+    }
+
+    function downloadJSON() {
+      const blob = new Blob([JSON.stringify({ count: audienceCount, history: scanHistory }, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'escaneos.json';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function onScanSuccess(decodedText) {
+      if (!scanning) return;
+      scanning = false;
+      const now = new Date().toLocaleString();
+      scanHistory.push({ text: decodedText, date: now });
+      document.getElementById('last-scan-time').textContent = now;
+      audienceCount++;
+      saveData();
+      updateUI();
+      setTimeout(() => scanning = true, 1000);
+    }
+
+    function onScanFailure(error) {
+      // Intencionalmente ignorado
+    }
+
+    function manualSearch() {
+      const input = document.getElementById('manual-search').value.toLowerCase();
+      const result = document.getElementById('manual-result');
+      const matches = scanHistory.filter(entry => entry.text.toLowerCase().includes(input));
+      if (matches.length) {
+        result.innerHTML = matches.map(m => `<div>${m.date} - ${m.text}</div>`).join('');
+      } else {
+        result.innerHTML = '<div>No se encontraron coincidencias.</div>';
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      loadData();
+      const qrScanner = new Html5QrcodeScanner(
+        "qr-reader",
+        { fps: 10, qrbox: 250 },
+        false);
+      qrScanner.render(onScanSuccess, onScanFailure);
+
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('service-worker.js')
+          .then(reg => console.log('SW registrado:', reg.scope))
+          .catch(err => console.error('SW error:', err));
+      }
+    });
+  </script>
+</body>
+</html>
