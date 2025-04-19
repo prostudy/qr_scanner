@@ -3,22 +3,22 @@ const { createApp, ref, computed, onMounted, onBeforeUnmount, nextTick } = Vue;
 const app = createApp({
     setup() {
         // --- State (Refs) ---
-        const currentSection = ref('scan'); // 'scan', 'welcome', 'gifts', 'confirmation', 'error'
+        const currentSection = ref('scan');
         const isLoading = ref(false);
         const loadingMessage = ref('Cargando...');
-        const currentUser = ref(null); // { id, name, points, qrCode }
-        const availableGifts = ref([]); // [ { id, name, pointsCost, stock, imageUrl } ]
+        const currentUser = ref(null);
+        const availableGifts = ref([]);
         const selectedGiftIds = ref([]);
         const errorMessage = ref('');
         const cameraError = ref('');
-        const tempGiftError = ref(''); // Temporary errors on the gifts screen
+        const tempGiftError = ref('');
 
         const qrScannerInstance = ref(null);
         const resetTimer = ref(null);
 
         // --- Configuration ---
-        const RESET_TIMEOUT = 5000; // 15 seconds
-        const allowMultipleGifts = false; // Set to true to allow multiple selections
+        const RESET_TIMEOUT = 2000;
+        const allowMultipleGifts = false;
 
         // --- Computed Properties ---
         const totalSelectedPoints = computed(() => {
@@ -32,359 +32,193 @@ const app = createApp({
             return (currentUser.value?.points || 0) - totalSelectedPoints.value;
         });
 
-        const cartItemCount = computed(() => {
-            return selectedGiftIds.value.length;
-        });
+        const cartItemCount = computed(() => selectedGiftIds.value.length);
 
-        const canConfirmSelection = computed(() => {
-            return selectedGiftIds.value.length > 0 && remainingPoints.value >= 0;
-        });
+        const canConfirmSelection = computed(() => selectedGiftIds.value.length > 0 && remainingPoints.value >= 0);
 
         // --- Methods ---
 
-        /** Changes the currently visible section */
+        /** Cambia la sección visible y maneja el escáner */
         const showSection = (sectionId) => {
+            console.log(`[showSection] Changing to section: ${sectionId}. Current: ${currentSection.value}`);
             clearTimeout(resetTimer.value);
             isLoading.value = false;
-        
-            if (currentSection.value === 'scan' && sectionId !== 'scan' && qrScannerInstance.value) {
-                stopQrScanner();
+
+            // Llama a stop SIEMPRE que salgas de 'scan'
+            if (currentSection.value === 'scan' && sectionId !== 'scan') {
+                 console.log("[showSection] Leaving 'scan' section, calling stopQrScanner...");
+                 stopQrScanner(); // Detiene al salir
             }
-        
-            currentSection.value = sectionId; // Vue planifica la actualización del DOM
-        
-            // !!! LA PARTE CLAVE !!!
+
+            currentSection.value = sectionId; // Dispara la actualización (v-show o v-if)
+
+            // Llama a start DENTRO de nextTick cuando entres a 'scan'
+            // Con v-show, esto asegura que el elemento es visible y JS puede interactuar
             if (sectionId === 'scan') {
-                // Espera al siguiente "tick" del ciclo de actualización del DOM
                 nextTick(() => {
-                    // Ahora estamos SEGUROS de que el v-if="currentSection === 'scan'"
-                    // ha sido procesado y el div #qr-reader existe en el DOM.
-                    console.log("DOM updated, attempting to start scanner..."); // Añade log para confirmar
-                    startQrScanner();
+                    console.log("[showSection/nextTick] DOM likely updated for 'scan', calling startQrScanner...");
+                    startQrScanner(); // Intentar iniciar el escáner
                 });
             }
-        
+
+            // Configura el reseteo en pantallas finales
             if (sectionId === 'confirmation' || sectionId === 'error') {
                 resetTimer.value = setTimeout(resetToScan, RESET_TIMEOUT);
             }
         };
 
-        /** Simulates validating QR code (Replace with actual API call) */
+        // --- Funciones de API Simuladas (¡REEMPLAZAR!) ---
         const validateQrCode = async (qrCode) => {
             console.log(`Simulating validation for QR: ${qrCode}`);
-            loadingMessage.value = 'Validando código...';
-            isLoading.value = true;
+            loadingMessage.value = 'Validando acceso...'; isLoading.value = true;
             await new Promise(resolve => setTimeout(resolve, 1500));
-
-            // ** BACKEND LOGIC SIMULATION **
-            //if (qrCode === "VALID_QR_123") {
-            if(true){
-                isLoading.value = false;
-                return { success: true, user: { id: 'user001', name: 'Raúl González', points: 150, qrCode: qrCode } };
-            } else if (qrCode === "ALREADY_SCANNED_QR") {
-                isLoading.value = false;
-                return { success: false, error: 'Este código QR ya ha sido escaneado.' };
-            } else {
-                isLoading.value = false;
-                return { success: false, error: 'Código QR inválido o no encontrado.' };
-            }
+            isLoading.value = false;
+            //if (qrCode === "VALID_QR_123") return { success: true, user: { id: 'user001', name: 'Alex Martínez', points: 150, qrCode: qrCode } };
+            if (true) return { success: true, user: { id: 'user001', name: 'Alex Martínez', points: 150, qrCode: qrCode } };
+            if (qrCode === "ALREADY_SCANNED_QR") return { success: false, error: 'Este código QR ya fue utilizado.' };
+            return { success: false, error: 'Código QR inválido o no encontrado.' };
         };
-
-        /** Simulates fetching gifts (Replace with actual API call) */
         const fetchGifts = async () => {
             console.log("Simulating fetching gifts...");
-            loadingMessage.value = 'Cargando regalos...';
-            isLoading.value = true;
-            await new Promise(resolve => setTimeout(resolve, 1000));
-
-            // ** BACKEND LOGIC SIMULATION **
+            loadingMessage.value = 'Cargando catálogo...'; isLoading.value = true;
+            await new Promise(resolve => setTimeout(resolve, 1200));
             isLoading.value = false;
-            return {
-                success: true,
-                gifts: [
-                    { id: 'gift01', name: 'Gorra', pointsCost: 50, stock: 10, imageUrl: 'images/gorra.png' },
-                    { id: 'gift02', name: 'Termo', pointsCost: 50, stock: 5, imageUrl: 'images/termo.png' },
-                    { id: 'gift03', name: 'Sudadera', pointsCost: 50, stock: 0, imageUrl: 'images/sudadera.png' },
-                    { id: 'gift04', name: 'Playera', pointsCost: 50, stock: 20, imageUrl: 'images/playera.png' },
-                    { id: 'gift05', name: 'Mochila', pointsCost: 100, stock: 8, imageUrl: 'images/mochila.png' },
-                ]
-            };
+            return { success: true, gifts: [
+                { id: 'gift01', name: 'Gorra Premium', pointsCost: 50, stock: 10, imageUrl: null },
+                { id: 'gift02', name: 'Termo Metálico', pointsCost: 50, stock: 5, imageUrl: null },
+                { id: 'gift03', name: 'Sudadera Evento', pointsCost: 100, stock: 0, imageUrl: null },
+                { id: 'gift04', name: 'Playera Conmemorativa', pointsCost: 50, stock: 20, imageUrl: null },
+                { id: 'gift05', name: 'Mochila Exclusiva', pointsCost: 150, stock: 8, imageUrl: null },
+            ]};
         };
-
-        /** Simulates confirming selection (Replace with actual API call) */
         const confirmGiftSelectionApi = async (userId, giftIds) => {
             console.log(`Simulating confirmation for user ${userId}, gifts: ${giftIds.join(', ')}`);
-            loadingMessage.value = 'Confirmando selección...';
-            isLoading.value = true;
-            await new Promise(resolve => setTimeout(resolve, 1500));
-
-            // ** BACKEND LOGIC SIMULATION **
-            // Simulate an out-of-stock error during confirmation sometimes
-             // if (giftIds.includes('gift02') && Math.random() > 0.7) {
-             //    isLoading.value = false;
-             //    return { success: false, error: 'Lo sentimos, el Termo se acaba de agotar. Por favor elige otro.' };
-             // }
-
+            loadingMessage.value = 'Procesando canje...'; isLoading.value = true;
+            await new Promise(resolve => setTimeout(resolve, 1800));
             isLoading.value = false;
             return { success: true };
         };
 
-        /** Starts the QR Scanner */
+        // --- Lógica del Escáner QR ---
+        const stopQrScanner = async () => {
+            const scanner = qrScannerInstance.value;
+            if (scanner) {
+                console.log("[stopQrScanner] Instance found. Attempting to stop...");
+                try { await scanner.stop(); console.log("[stopQrScanner] Scanner stopped successfully."); }
+                catch (err) { console.warn("[stopQrScanner] Error during stop() (might be ok):", err); }
+                finally { qrScannerInstance.value = null; console.log("[stopQrScanner] Instance set to null."); }
+            } else { console.log("[stopQrScanner] No instance found."); }
+        };
+
         const startQrScanner = () => {
-            cameraError.value = ''; // Clear previous errors
-            if (qrScannerInstance.value) {
-                 console.log("Scanner potentially already running or needs cleanup.");
-                 // Attempt to stop just in case, before starting again
-                 stopQrScanner().finally(() => {
-                    createAndStartScanner();
-                 });
-            } else {
-                 createAndStartScanner();
-            }
+            console.log("[startQrScanner] Called.");
+            cameraError.value = '';
+            if (qrScannerInstance.value) { console.warn("[startQrScanner] Instance already exists. Aborting."); return; }
+            createAndStartScanner();
         };
 
         const createAndStartScanner = () => {
-             if (!document.getElementById('qr-reader')) {
-                 console.error("QR Reader element not found in DOM yet.");
-                 cameraError.value = "Error al inicializar el lector QR.";
-                 return;
+             console.log("[createAndStartScanner] Attempting to create scanner...");
+             const qrReaderElement = document.getElementById('qr-reader');
+
+             if (!qrReaderElement) {
+                 console.error("[createAndStartScanner] FATAL: #qr-reader element NOT FOUND.");
+                 cameraError.value = "Error interno: No se encontró el lector QR.";
+                 qrScannerInstance.value = null; return;
              }
-            // Prevent duplicate instances if called rapidly
-            if(qrScannerInstance.value) return;
+             console.log("[createAndStartScanner] #qr-reader element FOUND.");
 
-            const scanner = new Html5Qrcode("qr-reader");
-             qrScannerInstance.value = scanner;
+            if(qrScannerInstance.value) { console.warn("[createAndStartScanner] Aborted: Instance existed."); return; }
 
-             const qrCodeSuccessCallback = (decodedText, decodedResult) => {
-                 console.log(`Code matched = ${decodedText}`);
-                 if (qrScannerInstance.value) { // Check if instance exists before stopping
-                     stopQrScanner().then(() => {
-                        handleQrScanSuccess(decodedText);
-                     });
-                 } else {
-                     // Should not happen if logic is correct, but handle defensively
-                     handleQrScanSuccess(decodedText);
-                 }
+            console.log("[createAndStartScanner] Creating new Html5Qrcode instance...");
+            const scanner = new Html5Qrcode("qr-reader", false);
+            qrScannerInstance.value = scanner;
+            console.log("[createAndStartScanner] New instance assigned.");
 
-             };
-             const config = { fps: 10, qrbox: { width: 200, height: 200 }, rememberLastUsedCamera: false }; // added rememberLastUsedCamera: false
+            const qrCodeSuccessCallback = (decodedText, decodedResult) => {
+                 console.log(`[qrCodeSuccessCallback] Code matched = ${decodedText}`);
+                 stopQrScanner().then(() => { handleQrScanSuccess(decodedText); })
+                 .catch(err => { console.error("Error stopping scanner post-scan:", err); handleQrScanSuccess(decodedText); });
+            };
+            const config = { fps: 10, qrbox: { width: 220, height: 220 }, aspectRatio: 1.0 };
 
-             // Check for camera permissions first (optional but good practice)
-             Html5Qrcode.getCameras().then(devices => {
+            Html5Qrcode.getCameras().then(devices => {
                  if (devices && devices.length) {
-                      // Start scanning with the back camera if available
-                     const cameraId = devices.find(device => device.label.toLowerCase().includes('back'))?.id || devices[0].id; // Prefer back camera
-                     scanner.start(
-                         cameraId, // { facingMode: "environment" }, // Alternatively use facingMode
-                         config,
-                         qrCodeSuccessCallback,
-                         (errorMessage) => { /*console.warn(`QR Scan Error: ${errorMessage}`);*/ }
-                     ).then(() => {
-                         console.log("QR Scanner started successfully.");
-                         cameraError.value = '';
-                     }).catch((err) => {
-                         console.error(`Unable to start scanning: ${err}`);
-                         cameraError.value = "No se pudo iniciar la cámara. Verifica los permisos.";
-                         // Optionally show error section
-                         // displayError("No se pudo acceder a la cámara.");
-                         qrScannerInstance.value = null; // Reset instance on failure
-                     });
-                 } else {
-                      console.error("No cameras found.");
-                      cameraError.value = "No se encontraron cámaras.";
-                      qrScannerInstance.value = null;
-                 }
+                     const cameraId = devices.find(d => d.label.toLowerCase().includes('back'))?.id || devices[0].id;
+                     console.log(`[createAndStartScanner] Attempting scanner.start() with cam: ${cameraId}`);
+                     if (qrScannerInstance.value) { // Re-check instance exists
+                         qrScannerInstance.value.start(cameraId, config, qrCodeSuccessCallback, (err) => {})
+                         .then(() => { console.log("[createAndStartScanner] scanner.start() OK."); cameraError.value = ''; })
+                         .catch((err) => { console.error(`[createAndStartScanner] scanner.start() FAILED: ${err}`); cameraError.value = "No se pudo iniciar cámara."; stopQrScanner(); });
+                    } else { console.error("[createAndStartScanner] Instance became null before start."); }
+                 } else { console.error("[createAndStartScanner] No cameras."); cameraError.value = "No se encontraron cámaras."; qrScannerInstance.value = null; }
              }).catch(err => {
-                 console.error("Error getting cameras:", err);
-                 cameraError.value = "Error al acceder a las cámaras. Verifica los permisos.";
-                  if (err.name === "NotAllowedError") {
-                     cameraError.value = "Permiso de cámara denegado. Habilítalo para escanear.";
-                 }
+                 console.error("[createAndStartScanner] Error getCameras:", err); cameraError.value = "Error acceso cámara.";
+                 if (err.name === "NotAllowedError") { cameraError.value = "Permiso cámara denegado."; }
                  qrScannerInstance.value = null;
              });
-        }
-
-        /** Stops the QR Scanner */
-        const stopQrScanner = async () => {
-             if (qrScannerInstance.value) {
-                 console.log("Attempting to stop QR Scanner...");
-                 try {
-                    // Check state before stopping - prevents errors if already stopped
-                    if (qrScannerInstance.value.getState() === Html5QrcodeScannerState.SCANNING || qrScannerInstance.value.getState() === Html5QrcodeScannerState.PAUSED) {
-                         await qrScannerInstance.value.stop();
-                         console.log("QR Scanner stopped.");
-                    } else {
-                         console.log("Scanner was not in a stoppable state.")
-                    }
-                     qrScannerInstance.value = null; // Release the instance
-                 } catch (err) {
-                     console.error("Error stopping QR Scanner:", err);
-                      // Don't nullify instance if stop failed, maybe retry later? Or handle error
-                 }
-             } else {
-                 console.log("QR Scanner instance not found or already stopped.");
-             }
         };
 
-        /** Handles successful QR scan */
+        // --- Lógica del Flujo de Trabajo ---
         const handleQrScanSuccess = async (qrCode) => {
-             // isLoading will be set by validateQrCode
              try {
                  const result = await validateQrCode(qrCode);
-                 if (result.success) {
-                     currentUser.value = result.user;
-                     showSection('welcome');
-                 } else {
-                     displayError(result.error || 'Código QR no válido.');
-                 }
-             } catch (error) {
-                 console.error("Validation API call failed:", error);
-                 displayError('Error de conexión al validar.');
-             }
+                 if (result.success) { currentUser.value = result.user; showSection('welcome'); }
+                 else { displayError(result.error || 'Código QR no válido.'); }
+             } catch (error) { console.error("Validation API failed:", error); displayError('Error conexión validación.'); }
         };
-
-        /** Moves from Welcome to Gift Selection */
         const handleStartSelection = async () => {
-             selectedGiftIds.value = []; // Reset selection
-             tempGiftError.value = ''; // Clear previous gift errors
-            // isLoading will be set by fetchGifts
+             selectedGiftIds.value = []; tempGiftError.value = '';
             try {
                 const result = await fetchGifts();
-                if (result.success) {
-                    availableGifts.value = result.gifts;
-                    showSection('gifts');
-                } else {
-                    displayError(result.error || 'No se pudieron cargar los regalos.');
-                }
-            } catch (error) {
-                console.error("Fetch gifts API call failed:", error);
-                displayError('Error de conexión al cargar regalos.');
-            }
+                if (result.success) { availableGifts.value = result.gifts; showSection('gifts'); }
+                else { displayError(result.error || 'Error cargando regalos.'); }
+            } catch (error) { console.error("Fetch gifts API failed:", error); displayError('Error conexión regalos.'); }
         };
-
-        /** Toggles selection of a gift */
         const handleGiftSelection = (gift) => {
-            tempGiftError.value = ''; // Clear temporary error on interaction
-            const giftId = gift.id;
-            const index = selectedGiftIds.value.indexOf(giftId);
-
-            if (index > -1) {
-                // Deselect
-                selectedGiftIds.value.splice(index, 1);
-            } else {
-                // Select
+            tempGiftError.value = ''; const giftId = gift.id; const index = selectedGiftIds.value.indexOf(giftId);
+            if (index > -1) { selectedGiftIds.value.splice(index, 1); }
+            else {
                  if (remainingPoints.value >= gift.pointsCost) {
-                    if (allowMultipleGifts) {
-                         selectedGiftIds.value.push(giftId);
-                    } else {
-                         // Single selection mode: replace current selection
-                         selectedGiftIds.value = [giftId];
-                    }
-                 } else {
-                    showTemporaryGiftError("No tienes suficientes puntos para este artículo.");
-                 }
+                    if (allowMultipleGifts) { selectedGiftIds.value.push(giftId); }
+                    else { selectedGiftIds.value = [giftId]; }
+                 } else { showTemporaryGiftError("No tienes suficientes puntos."); }
             }
         };
-
-         /** Checks if a gift ID is currently selected */
-         const isGiftSelected = (giftId) => {
-             return selectedGiftIds.value.includes(giftId);
-         };
-
-         /** Shows a temporary error on the gifts screen */
-        const showTemporaryGiftError = (message) => {
-            tempGiftError.value = message;
-            setTimeout(() => { tempGiftError.value = ''; }, 3000);
-        }
-
-
-        /** Handles confirming the selected gifts */
+        const isGiftSelected = (giftId) => selectedGiftIds.value.includes(giftId);
+        const showTemporaryGiftError = (message) => { tempGiftError.value = message; setTimeout(() => { tempGiftError.value = ''; }, 3500); };
         const handleConfirmSelection = async () => {
             if (!canConfirmSelection.value) return;
-             // isLoading will be set by confirmGiftSelectionApi
              try {
                  const result = await confirmGiftSelectionApi(currentUser.value.id, selectedGiftIds.value);
-                 if (result.success) {
-                     showSection('confirmation');
-                 } else {
-                     // Stay on gifts screen, show error
-                     showTemporaryGiftError(result.error || 'No se pudo confirmar la selección.');
-                     // Optional: Re-fetch gifts here in case stock changed
-                     // await handleStartSelection(); // This would reset selection, maybe not ideal UX
-                     // Better: fetch gifts silently and update availableGifts.value
-                     // This requires the fetchGifts function to not set isLoading=true
-                 }
-             } catch (error) {
-                 console.error("Confirm selection API call failed:", error);
-                 displayError('Error de conexión al confirmar.');
-             }
+                 if (result.success) { showSection('confirmation'); }
+                 else { showTemporaryGiftError(result.error || 'No se pudo confirmar.'); }
+             } catch (error) { console.error("Confirm API failed:", error); displayError('Error conexión confirmación.'); }
         };
-
-        /** Displays an error message on the error screen */
-        const displayError = (message) => {
-            errorMessage.value = message || 'Ocurrió un error inesperado.';
-            showSection('error');
-        };
-
-        /** Resets the application to the initial scanning state */
+        const displayError = (message) => { errorMessage.value = message || 'Ocurrió un error inesperado.'; showSection('error'); };
         const resetToScan = () => {
-            clearTimeout(resetTimer.value);
-            console.log("Resetting to scan screen.");
-            currentUser.value = null;
-            availableGifts.value = [];
-            selectedGiftIds.value = [];
-            errorMessage.value = '';
-            cameraError.value = '';
-            tempGiftError.value = '';
-            // Scanner will be started by showSection('scan')
-            showSection('scan');
+            clearTimeout(resetTimer.value); console.log("[resetToScan] Initiated.");
+            currentUser.value = null; availableGifts.value = []; selectedGiftIds.value = [];
+            errorMessage.value = ''; cameraError.value = ''; tempGiftError.value = '';
+            //showSection('scan'); // Llama a showSection, que usará nextTick
+            location.reload();
         };
 
-        // --- Lifecycle Hooks ---
+        // --- Hooks de Ciclo de Vida ---
         onMounted(() => {
             console.log("Vue App Mounted");
-            // Start scanner immediately only if the initial section is 'scan'
-            if (currentSection.value === 'scan') {
-                 // Use nextTick here too, just in case mounting is faster than expected
-                 nextTick(() => {
-                    startQrScanner();
-                 });
-            }
+            if (currentSection.value === 'scan') { nextTick(() => { startQrScanner(); }); }
         });
+        onBeforeUnmount(() => { console.log("Vue App Unmounting"); stopQrScanner(); clearTimeout(resetTimer.value); });
 
-        onBeforeUnmount(() => {
-            console.log("Vue App Before Unmount");
-            stopQrScanner(); // Clean up scanner
-            clearTimeout(resetTimer.value); // Clear any pending reset
-        });
-
-        // --- Return values accessible in the template ---
+        // --- Return ---
         return {
-            currentSection,
-            isLoading,
-            loadingMessage,
-            currentUser,
-            availableGifts,
-            selectedGiftIds,
-            errorMessage,
-            cameraError,
-            tempGiftError,
-            totalSelectedPoints,
-            remainingPoints,
-            cartItemCount,
-            canConfirmSelection,
-            handleStartSelection,
-            handleGiftSelection,
-            isGiftSelected,
-            handleConfirmSelection,
-            resetToScan,
-            // No need to return showSection, displayError etc. if only called internally
-            // Only return what the template *directly* needs to call or display
+            currentSection, isLoading, loadingMessage, currentUser, availableGifts, selectedGiftIds,
+            errorMessage, cameraError, tempGiftError, totalSelectedPoints, remainingPoints,
+            cartItemCount, canConfirmSelection, handleStartSelection, handleGiftSelection,
+            isGiftSelected, handleConfirmSelection, resetToScan,
         };
     } // end setup()
 });
-
-
-
-
+// Montar la aplicación
 app.mount('#app');

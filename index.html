@@ -2,177 +2,155 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Buen Black Cyber Kiosk (Vue)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Bienvenida al Evento - Kiosco QR</title>
+    <!-- Fuente Raleway -->
+    <link href="https://fonts.googleapis.com/css2?family=Raleway:wght@400;700&display=swap" rel="stylesheet">
+    <!-- CSS Principal -->
     <link rel="stylesheet" href="style.css">
-    <link rel="icon" href="google-favicon.png">
-    <!-- Vue.js 3 CDN -->
-    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <!-- Favicon (Placeholder) -->
+    <link rel="icon" href="https://via.placeholder.com/32/004D40/FFFFFF?text=E">
+
+    <!-- Vue.js 3 CDN (Producción) -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
     <!-- html5-qrcode CDN -->
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
 </head>
 <body>
-    <div id="app" class="kiosk-container" v-cloak> <!-- v-cloak prevents uncompiled template flash -->
-        <header class="app-header">
-            <img src="google-logo-icon.png" alt="Google Logo" class="google-logo-icon">
+    <!-- Contenedor raíz de Vue -->
+    <div id="app" v-cloak>
+
+        <!-- Header -->
+        <header>
+            <!-- CAMBIAR RUTA AL LOGO REAL -->
+            <img src="./logo-placeholder-image.png" alt="Logo del evento" class="logo">
+            <span>Evento Especial</span> <!-- O un título dinámico -->
         </header>
 
-        <main class="app-main">
-            <!-- Loading Overlay (can be shown on top of any section) -->
-            <div v-if="isLoading" class="loading-overlay app-section active">
-                 <div class="spinner"></div>
-                 <p>{{ loadingMessage }}</p>
+        <!-- Contenido Principal -->
+        <main class="main-content">
+            <!-- Contenedor Central Estilizado -->
+            <div class="container">
+
+                 
+                 <!-- Overlay de Carga -->
+                 <div v-if="isLoading" class="loading-overlay">
+                     <div class="spinner"></div>
+                     <p>{{ loadingMessage }}</p>
+                 </div>
+
+                <!-- Transición Vue -->
+                <transition name="fade" mode="out-in">
+                    <div :key="currentSection" class="section-wrapper">
+
+                        <!-- =============================== -->
+                        <!-- 1. Scan Section (USA V-SHOW)  -->
+                        <!-- =============================== -->
+                        <section v-show="currentSection === 'scan'" class="app-section active">
+                            <!-- CAMBIAR IMAGEN POR LA DEL EVENTO -->
+                            <img src="./logo-placeholder-image.png" alt="Imagen del Evento" class="hero-image">
+                            <h1 class="title">¡Bienvenid@!</h1>
+                            <p class="description">Escanea tu código QR para comenzar tu experiencia.</p>
+                            <!-- Lector QR Real -->
+                            <div id="qr-reader" class="qr-reader-styled">
+                                <!-- Placeholder -->
+                                <div class="qr-placeholder">
+                                    <img src="https://cdn-icons-png.flaticon.com/512/6124/6124991.png" alt="QR Icon">
+                                    <span>Apuntando a la cámara...</span>
+                                </div>
+                                 <!-- Video se inserta aquí -->
+                            </div>
+                            <div v-if="cameraError" class="result error">{{ cameraError }}</div>
+                            <p class="message" v-if="!cameraError && currentSection === 'scan'">Coloca tu QR frente a la cámara</p>
+                        </section>
+
+                        <!-- =============================== -->
+                        <!-- 2. Welcome Section (Usa v-if) -->
+                        <!-- =============================== -->
+                        <section v-if="currentSection === 'welcome'" class="app-section active">
+                            <h1 class="title success">¡Acceso Confirmado!</h1>
+                            <p class="description">Bienvenido/a al evento, {{ currentUser?.name }}.</p>
+                             <div class="user-info">
+                                <!-- <p><strong>Nombre:</strong> {{ currentUser?.name }}</p> -->
+                                <p><strong>Puntos Disponibles:</strong> <strong class="points-highlight">{{ currentUser?.points }}</strong></p>
+                            </div>
+                            <button @click="handleStartSelection" class="button button-primary">
+                                Ver Regalos <span style="font-size: 1.2em; margin-left: 5px;">→</span>
+                            </button>
+                        </section>
+
+                        <!-- =============================== -->
+                        <!-- 3. Gifts Section (Usa v-if)   -->
+                        <!-- =============================== -->
+                        <section v-if="currentSection === 'gifts'" class="app-section active gifts-section-layout">
+                             <h2 class="title">Elige tus Regalos</h2>
+                             <div class="points-summary">
+                                Puntos Disponibles: <strong class="points-highlight">{{ remainingPoints }}</strong>
+                             </div>
+                             <div v-if="tempGiftError" class="result error form-message">{{ tempGiftError }}</div>
+                             <div id="gifts-list" class="gifts-grid">
+                                <!-- Loop v-for -->
+                                <div v-for="gift in availableGifts" :key="gift.id"
+                                     class="gift-card"
+                                     :class="{ 'selected': isGiftSelected(gift.id), 'disabled': gift.stock <= 0 || (remainingPoints < gift.pointsCost && !isGiftSelected(gift.id)) }"
+                                     @click="gift.stock > 0 && handleGiftSelection(gift)">
+                                     <!-- CAMBIAR LÓGICA DE IMAGEN -->
+                                    <img :src="gift.imageUrl || `./placeholder-614.webp`" :alt="gift.name" class="gift-image">
+                                    <div class="gift-card-body">
+                                        <h3 class="gift-name">{{ gift.name }}</h3>
+                                        <p class="gift-points-cost">{{ gift.pointsCost }} pts</p>
+                                        <span v-if="gift.stock <= 0" class="out-of-stock-label">Agotado</span>
+                                    </div>
+                                     <div v-if="isGiftSelected(gift.id)" class="selected-indicator">✓</div>
+                                </div>
+                             </div>
+                             <button @click="handleConfirmSelection" class="button button-primary" :disabled="!canConfirmSelection">
+                                 Confirmar ({{ totalSelectedPoints }} pts)
+                             </button>
+                        </section>
+
+                        <!-- =============================== -->
+                        <!-- 4. Confirmation Section (v-if)-->
+                        <!-- =============================== -->
+                        <section v-if="currentSection === 'confirmation'" class="app-section active">
+                            <h1 class="title success">¡Canje Exitoso!</h1>
+                             <div class="confirmation-icon">
+                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"></path></svg>
+                             </div>
+                            <p class="description">Tu selección fue confirmada. Recoge tu regalo en el mostrador.</p>
+                            <p class="message small-print">Reiniciando...</p>
+                        </section>
+
+                         <!-- =============================== -->
+                         <!-- 5. Error Section (v-if)       -->
+                         <!-- =============================== -->
+                        <section v-if="currentSection === 'error'" class="app-section active">
+                             <h1 class="title error">¡Error!</h1>
+                             <div class="error-icon">
+                                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M11 15h2v2h-2zm0-8h2v6h-2zm.99-5C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8z"></path></svg>
+                             </div>
+                            <p class="description error-text">{{ errorMessage }}</p>
+                            <button @click="resetToScan" class="button button-secondary">Intentar de Nuevo</button>
+                        </section>
+                    </div><!-- Fin section-wrapper -->
+                </transition> <!-- Fin transition -->
+
+            </div> <!-- Fin container -->
+        </main> <!-- Fin main-content -->
+
+        <!-- Footer -->
+        <footer>
+            <div>Patrocinado por:</div>
+            <div class="patrocinador">
+                <!-- CAMBIAR LOGOS PATROCINADORES -->
+                <img src="https://upload.wikimedia.org/wikipedia/commons/2/2f/Google_2015_logo.svg" alt="Google patrocinador">
+                <span>Google</span>
             </div>
-
-            <!-- 1. Scan Section -->
-            <section v-if="currentSection === 'scan'" id="scan-section" class="app-section active">
-                <div class="event-title">
-                    <span class="buen">Buen</span>
-                    <span class="black">Black</span>
-                    <span class="cyber">Cyber</span>
-                </div>
-                <p class="scan-prompt">Escanea tu código para comenzar tu experiencia de canje</p>
-                <div id="qr-reader" style="width: 250px; height: 250px; border: 1px solid #ccc;">
-                    <!-- QR Reader will be mounted here by the library -->
-                </div>
-                 <div v-if="cameraError" class="error-message">{{ cameraError }}</div>
-                <p class="scan-instruction">Coloca tu QR frente a la cámara para identificarte</p>
-            </section>
-
-            <!-- 2. Welcome Section (Loading handled by overlay now) -->
-            <section v-if="currentSection === 'welcome'" id="welcome-section" class="app-section active">
-                <div class="points-badge">Tienes <span>{{ currentUser.points }}</span> puntos</div>
-                <p class="welcome-greeting">¡Hola,</p>
-                <h1 id="user-name">{{ currentUser.name }}!</h1>
-                <p>Bienvenido al<br><strong>Buen Black Cyber 2025</strong></p>
-                <p>Tienes disponibles <strong>{{ currentUser.points }} puntos</strong> para canjear por nuestros productos exclusivos.</p>
-                <button @click="handleStartSelection" class="btn btn-primary">EMPEZAR</button>
-                 <div class="bottom-icon-placeholder">
-                     <img src="game-controller-icon.png" alt="Icon">
-                 </div>
-            </section>
-
-            <!-- 3. Gifts Section -->
-            <section v-if="currentSection === 'gifts'" id="gifts-section" class="app-section active">
-                <div class="gifts-header">
-                     <div class="points-badge">Puntos: {{ currentUser.points }} | Usados: {{ totalSelectedPoints }} | Disp: {{ remainingPoints }}</div>
-                     <button class="cart-btn" :disabled="cartItemCount === 0">
-                         <img src="shopping-cart-icon.png" alt="Cart">
-                         <span>Carrito ({{ cartItemCount }})</span>
-                     </button>
-                </div>
-                <h2>Elige tus productos favoritos</h2>
-                <div v-if="tempGiftError" class="error-message" style="margin-bottom: 15px;">{{ tempGiftError }}</div>
-                <div id="gifts-list" class="gifts-grid">
-                    <div v-for="gift in availableGifts"
-                         :key="gift.id"
-                         class="gift-item"
-                         :class="{
-                            'selected': isGiftSelected(gift.id),
-                            'disabled': gift.stock <= 0 || remainingPoints < gift.pointsCost && !isGiftSelected(gift.id),
-                         }"
-                         :data-id="gift.id"
-                         :data-points="gift.pointsCost">
-
-                        <img :src="gift.imageUrl || 'images/placeholder.png'" :alt="gift.name">
-                        <h3>{{ gift.name }}</h3>
-                        <p>{{ gift.pointsCost }} pts</p>
-                        <span v-if="gift.stock <= 0" class="out-of-stock-label">Agotado</span>
-                        <button v-if="gift.stock > 0"
-                                class="add-gift-btn"
-                                @click="handleGiftSelection(gift)"
-                                :disabled="remainingPoints < gift.pointsCost && !isGiftSelected(gift.id)">
-                                {{ isGiftSelected(gift.id) ? '✓' : '+' }}
-                        </button>
-                    </div>
-                </div>
-                 <button @click="handleConfirmSelection" class="btn btn-primary" :disabled="!canConfirmSelection">
-                     Confirmar Selección ({{ totalSelectedPoints }} pts)
-                 </button>
-            </section>
-
-            <!-- 4. Confirmation Section -->
-            <section v-if="currentSection === 'confirmation'" id="confirmation-section" class="app-section active">
-                <h1 class="confirm-thanks">¡Gracias por participar!</h1>
-                <p>Tu pedido ha sido confirmado.</p>
-                <p>Disfruta el resto de tu experiencia en el <strong>Buen Black Cyber 2025</strong>.</p>
-                <p class="small-print">Recoge tu regalo en el mostrador.</p>
-                 <div class="bottom-icon-placeholder">
-                     <img src="shopping-bag-confirm.png" alt="Shopping Bag">
-                 </div>
-            </section>
-
-             <!-- 5. Error Section -->
-            <section v-if="currentSection === 'error'" id="error-section" class="app-section active">
-                <h2>¡Oops! Algo salió mal.</h2>
-                <p id="error-message">{{ errorMessage }}</p>
-                <button @click="resetToScan" class="btn btn-secondary">Volver a Escanear</button>
-            </section>
-        </main>
-
-        <footer class="app-footer">
-             <div class="footer-shape footer-shape-red"></div>
-             <div class="footer-shape footer-shape-blue"></div>
-             <div class="footer-shape footer-shape-yellow"></div>
-             <div class="footer-shape footer-shape-green"></div>
         </footer>
-    </div>
 
-    <!-- Main Vue Application Logic -->
-    <script src="app.js"></script> <!-- Changed from script.js -->
+    </div> <!-- Fin #app -->
 
-    <style>
-      /* Style to hide uncompiled templates */
-      [v-cloak] > * { display:none }
-      [v-cloak]::before { content: "Loading..." } /* Optional loading text */
-
-      /* Loading Overlay Style */
-      .loading-overlay {
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background-color: rgba(255, 255, 255, 0.8);
-        z-index: 100;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        flex-direction: column;
-      }
-      .loading-overlay .spinner { margin-bottom: 20px; }
-      .loading-overlay p { font-size: 1.1em; color: #5f6368; }
-
-      /* Out of stock label */
-      .gift-item.disabled .out-of-stock-label {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%) rotate(-15deg);
-            background-color: rgba(95, 99, 104, 0.8); /* Darker grey */
-            color: white;
-            padding: 5px 10px;
-            border-radius: 4px;
-            font-size: 0.9em;
-            font-weight: bold;
-            z-index: 2; /* Above image */
-      }
-      .gift-item.disabled img,
-      .gift-item.disabled h3,
-      .gift-item.disabled p {
-          opacity: 0.6;
-      }
-      /* Ensure disabled state due to points also gets opacity */
-       .gift-item:has(button:disabled) img,
-       .gift-item:has(button:disabled) h3,
-       .gift-item:has(button:disabled) p {
-            opacity: 0.6;
-       }
-
-       .gift-item:has(button:disabled) button {
-            background-color: #ccc; /* Grey out disabled button */
-       }
-
-    </style>
+    <!-- Script Vue -->
+    <script src="app.js"></script>
 </body>
 </html>
