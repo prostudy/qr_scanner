@@ -74,10 +74,23 @@ const app = createApp({
             await new Promise(resolve => setTimeout(resolve, 1500));
             isLoading.value = false;
             //if (qrCode === "VALID_QR_123") return { success: true, user: { id: 'user001', name: 'Alex Martínez', points: 150, qrCode: qrCode } };
-            if (true) return { success: true, user: { id: 'user001', name: 'Alex Martínez', points: 150, qrCode: qrCode } };
+            if (true) return { success: true, user: { id: 'user001', name: 'Constantino', points: 150, qrCode: qrCode } };
             if (qrCode === "ALREADY_SCANNED_QR") return { success: false, error: 'Este código QR ya fue utilizado.' };
             return { success: false, error: 'Código QR inválido o no encontrado.' };
         };
+        /*const validateQrCode = async (qrCode) => {
+            loadingMessage.value = 'Validando acceso...'; isLoading.value = true;
+            try {
+                const response = await fetch(`https://qrvalidator-production.up.railway.app/validar_qr.php?codigo=${encodeURIComponent(qrCode)}`);
+                const result = await response.json();
+                isLoading.value = false;
+                return result;
+            } catch (err) {
+                isLoading.value = false;
+                return { success: false, error: 'Error de conexión al validar QR.' };
+            }
+        };*/
+
         const fetchGifts = async () => {
             console.log("Simulating fetching gifts...");
             loadingMessage.value = 'Cargando catálogo...'; isLoading.value = true;
