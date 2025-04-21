@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Boleto Digital Estilizado</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background: radial-gradient(circle at center, #7702a7, #393939);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    .ticket {
+      background: #111;
+      color: white;
+      border-radius: 20px;
+      width: 360px;
+      padding: 2rem;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
+      position: relative;
+    }
+    .ticket .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: bold;
+      color: #bbb;
+      font-size: 0.9rem;
+    }
+    .ticket .title {
+      font-size: 2.5rem;
+      font-weight: bold;
+      color: #c78cff;
+      margin: 1rem 0;
+    }
+    .ticket .qr {
+      text-align: center;
+      /*background: white;*/
+      padding: 0.7rem;
+      border-radius: 8px;
+      margin: 1rem 0;
+    }
+    .ticket .details {
+      font-size: 0.9rem;
+      line-height: 1.6;
+    }
+    .ticket .details span {
+      display: block;
+      margin-top: 0.5rem;
+    }
+    .ticket .details a {
+      color: #a469ff;
+      text-decoration: none;
+    }
+    .ticket .user {
+      display: flex;
+      align-items: center;
+      margin-top: 1.5rem;
+      border-top: 1px solid #333;
+      padding-top: 1rem;
+    }
+    .ticket .user-icon {
+      background: #4a4a4a;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-right: 1rem;
+      font-size: 1.2rem;
+    }
+    .ticket .user-info {
+      display: flex;
+      flex-direction: column;
+    }
+    .ticket .user-info .name {
+      font-weight: bold;
+      font-size: 1rem;
+    }
+    .ticket .user-info .type {
+      color: #ffe86b;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="ticket">
+    <div class="logo">
+      <img src="https://qr-scanner-adh.pages.dev/logo-placeholder-image.png" alt="Logo" height="18" /> Evento Conf
+    </div>
+    <div class="title">México</div>
+    <div class="qr" id="qr">
+        <img src="https:\/\/summit.emprendedor.com\/generadorqr\/.\/qrs_sistemas\/oscar_6e1bc91aca.png" width="150px" height="auto"/>
+    </div>
+    <div class="details">
+      <span>Mayo 17, 2025</span>
+      <span><strong>World Trade Center</strong></span>
+      <span>CDMX, México</span>
+      <a href="#">tuevento.com/conf</a>
+    </div>
+    <div class="user">
+      <div class="user-icon">👤</div>
+      <div class="user-info">
+        <div class="name">Oscar</div>
+        <div class="type">Asistente presencial</div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

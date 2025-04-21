@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Gestión de Funciones y Eventos</title>
+    <!-- Estilos -->
+    <link rel="stylesheet" href="admin_style.css">
+    <!-- Favicon (Opcional) -->
+    <link rel="icon" href="https://via.placeholder.com/32/4CAF50/FFFFFF?text=A">
+
+    <!-- Vue.js 3 CDN (Producción) -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <!-- Opcional: PapaParse para CSV (si quieres parsing robusto) -->
+    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/papaparse/5.3.0/papaparse.min.js"></script> -->
+
+</head>
+<body>
+
+<div id="admin-app" class="admin-container" v-cloak>
+
+    <header class="admin-header">
+        <h1>Gestor de Eventos y Funciones</h1>
+    </header>
+
+    <main class="admin-main">
+
+        <!-- Mensaje de Feedback (Éxito/Error) -->
+        <div v-if="feedbackMessage" class="feedback-message" :class="feedbackType">
+            {{ feedbackMessage }}
+            <button @click="clearFeedback" class="close-feedback">×</button>
+        </div>
+
+        <!-- Indicador de Carga -->
+        <div v-if="isLoading" class="loading-indicator">
+            <div class="spinner"></div>
+            <span>Procesando...</span>
+        </div>
+
+        <!-- ============================== -->
+        <!-- SECCIÓN: FORMULARIO DE EVENTO -->
+        <!-- ============================== -->
+        <section v-if="currentView === 'eventForm'" class="admin-section event-form-section">
+            <h2>1. Definir Nueva Función/Evento</h2>
+            <form @submit.prevent="saveEvent" class="styled-form">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="eventTitle">Título del Evento:</label>
+                        <input type="text" id="eventTitle" v-model.trim="eventDetails.title" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="cinemaName">Nombre del Cine:</label>
+                        <input type="text" id="cinemaName" v-model.trim="eventDetails.cinema" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="hallName">Sala:</label>
+                        <input type="text" id="hallName" v-model.trim="eventDetails.hall" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="capacity">Capacidad de Sala:</label>
+                        <input type="number" id="capacity" v-model.number="eventDetails.capacity" min="1" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="eventDate">Fecha:</label>
+                        <input type="date" id="eventDate" v-model="eventDetails.date" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="eventTime">Horario:</label>
+                        <input type="time" id="eventTime" v-model="eventDetails.time" required>
+                    </div>
+                </div>
+                 <div class="form-group full-width">
+                        <label for="description">Descripción (Opcional):</label>
+                        <textarea id="description" v-model.trim="eventDetails.description" rows="3"></textarea>
+                    </div>
+                <div class="form-actions">
+                    <button type="submit" class="button button-primary">Guardar y Añadir Invitados →</button>
+                </div>
+            </form>
+        </section>
+
+        <!-- ============================== -->
+        <!-- SECCIÓN: GESTIÓN DE INVITADOS -->
+        <!-- ============================== -->
+        <section v-if="currentView === 'guestManagement'" class="admin-section guest-management-section">
+            <h2>2. Gestionar Invitados para: "{{ eventDetails.title }}"</h2>
+
+            <!-- Mostrar Detalles del Evento -->
+            <div class="event-summary">
+                <p><strong>Cine:</strong> {{ eventDetails.cinema }} | <strong>Sala:</strong> {{ eventDetails.hall }} | <strong>Capacidad:</strong> {{ eventDetails.capacity }}</p>
+                <p><strong>Fecha:</strong> {{ formattedDate }} | <strong>Hora:</strong> {{ formattedTime }}</p>
+                <p v-if="eventDetails.description"><strong>Desc:</strong> {{ eventDetails.description }}</p>
+                <button @click="editEvent" class="button button-secondary button-small">Editar Evento</button>
+                <hr>
+            </div>
+
+            <div class="guest-management-columns">
+
+                <!-- Columna Izquierda: Carga y Añadir Manual -->
+                <div class="guest-column add-guests-column">
+                    <h3>Añadir Invitados</h3>
+
+                    <!-- Carga CSV -->
+                    <div class="form-group csv-upload">
+                        <label for="csvFile">Cargar lista desde CSV:</label>
+                        <input type="file" id="csvFile" @change="handleCsvUpload" accept=".csv">
+                        <button @click="processCsv" :disabled="!csvFile" class="button button-secondary">Procesar CSV</button>
+                        <small>Formato esperado: Nombre,Email (sin cabecera o con cabecera detectada)</small>
+                    </div>
+
+                    <hr class="separator">
+
+                    <!-- Añadir Manualmente -->
+                    <form @submit.prevent="addGuestManually" class="styled-form manual-add-form">
+                         <h4>Añadir manualmente:</h4>
+                        <div class="form-group">
+                            <label for="guestName">Nombre:</label>
+                            <input type="text" id="guestName" v-model.trim="newGuest.name" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="guestEmail">Email:</label>
+                            <input type="email" id="guestEmail" v-model.trim="newGuest.email" required>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="button button-primary">Añadir Invitado</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Columna Derecha: Lista de Invitados -->
+                <div class="guest-column guest-list-column">
+                    <h3>Lista de Invitados ({{ guests.length }} / {{ eventDetails.capacity }})</h3>
+                    <div class="guest-list-container">
+                        <ul v-if="guests.length > 0" class="guest-list">
+                            <li v-for="guest in guests" :key="guest.id" class="guest-item">
+                                <span class="guest-details">
+                                    <strong>{{ guest.name }}</strong> <br>
+                                    <small>{{ guest.email }}</small>
+                                </span>
+                                <button @click="deleteGuest(guest.id)" class="button-delete" title="Eliminar invitado">×</button>
+                            </li>
+                        </ul>
+                        <p v-else class="no-guests">Aún no hay invitados añadidos.</p>
+                    </div>
+                     <p v-if="guests.length >= eventDetails.capacity" class="capacity-warning">
+                        ¡Capacidad máxima de la sala alcanzada!
+                    </p>
+                </div>
+            </div>
+
+            <div class="form-actions final-actions">
+                 <button @click="generateQRs" class="button button-primary" :disabled="guests.length === 0">Generar QRs (Simulado)</button>
+                 <!-- <button @click="startNewEvent" class="button button-secondary">Crear Otro Evento</button> -->
+            </div>
+
+        </section>
+
+    </main>
+
+</div><!-- Fin #admin-app -->
+
+<!-- Script Principal Vue -->
+<script src="admin_app.js"></script>
+
+</body>
+</html>
